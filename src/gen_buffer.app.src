@@ -1,0 +1,17 @@
+{application, gen_buffer, [
+  {description, "Point-to-Point messaging pattern written in Erlang – based on EIP book"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {gen_buffer_app, []}},
+  {applications, [
+    kernel,
+    stdlib,
+    epocxy
+  ]},
+  {env,[]},
+  {modules, []},
+  {maintainers, [
+    "Carlos A. Bolanos"
+  ]},
+  {links, []}
+]}.
