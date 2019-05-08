@@ -14,7 +14,7 @@
 %% Common Test Cases
 -include_lib("mixer/include/mixer.hrl").
 -mixin([
-  {gen_buffer_common_test_cases, [
+  {gen_buffer_test_cases, [
     t_eval/1,
     t_eval_error/1,
     t_send_recv/1,
@@ -23,8 +23,8 @@
     t_fire_and_forget/1,
     t_add_del_workers/1,
     t_set_workers/1,
-    t_queue_size/1,
-    t_info_channel/1,
+    t_size/1,
+    t_info_buffer/1,
     t_info/1,
     t_worker_polling/1,
     t_worker_distribution/1
@@ -35,7 +35,7 @@
 -export([
   t_child_spec/1,
   t_create_errors/1,
-  t_delete_channel/1,
+  t_delete_buffer/1,
   t_buffer_types/1,
   t_missing_buffer_worker_funs/1,
   t_handle_message_state/1,
@@ -63,8 +63,7 @@
   producer
 ]).
 
--define(helpers, gen_buffer_common_test_cases).
--define(CHANNEL, gen_buffer_test).
+-define(BUFFER, gen_buffer_test).
 
 %%%===================================================================
 %%% Common Test
@@ -91,7 +90,7 @@ init_per_testcase(_, Config) ->
 
 end_per_testcase(_, Config) ->
   Mod = ?config(module, Config),
-  ok = cleanup_channels(Mod),
+  ok = cleanup_buffers(Mod),
   Config.
 
 %%%===================================================================
@@ -100,73 +99,83 @@ end_per_testcase(_, Config) ->
 
 t_child_spec(_Config) ->
   #{
-    id := test_channel,
-    restart := permanent,
+    id := test_buffer,
     start := {
-      gen_buffer_sup,
+      gen_buffer,
       start_link,
       [
-        test_channel,
+        test_buffer,
         #{
-          channel := test_channel,
+          buffer := test_buffer,
           message_handler := ?MODULE
         }
       ]
-    }
-  } = gen_buffer:child_spec([{channel, test_channel}, {message_handler, ?MODULE}]).
+    },
+    type := supervisor
+  } = gen_buffer:child_spec([{buffer, test_buffer}, {message_handler, ?MODULE}]).
 
 t_create_errors(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
 
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
   {error, {already_started, _}} =
-    ?helpers:create_channel(?CHANNEL, [{message_handler, handler}], Mod, Config),
+    gen_buffer_ct:create_buffer(?BUFFER, [{message_handler, handler}], Mod, Config),
 
   _ = process_flag(trap_exit, true),
 
   {{invalid_message_handler, handler}, _} =
     try
-      ?helpers:create_channel(test, [{message_handler, handler}], Mod, Config)
+      gen_buffer_ct:create_buffer(test, [{message_handler, handler}], Mod, Config)
     catch
       _:E2 -> E2
     end,
 
   {{missing_option, message_handler}, _} =
     try
-      ?helpers:create_channel(test, [], Mod, Config)
+      gen_buffer_ct:create_buffer(test, [], Mod, Config)
     catch
       _:E3 -> E3
     end,
 
   {{missing_callback, handle_message}, _} =
     try
-      ?helpers:create_channel(test, Opts#{message_handler => test_message_handler3}, Mod, Config)
+      gen_buffer_ct:create_buffer(
+        test,
+        Opts#{message_handler => test_message_handler3},
+        Mod,
+        Config
+      )
     catch
       _:E4 -> E4
     end,
 
   {{invalid_message_handler,"wrong_handler"}, _} =
     try
-      ?helpers:create_channel(test, Opts#{message_handler => "wrong_handler"}, Mod, Config)
+      gen_buffer_ct:create_buffer(test, Opts#{message_handler => "wrong_handler"}, Mod, Config)
     catch
       _:E5 -> E5
     end,
 
   {ok, _} =
-    ?helpers:create_channel(test1, Opts#{message_handler => test_message_handler2}, Mod, Config),
+    gen_buffer_ct:create_buffer(
+      test1,
+      Opts#{message_handler => test_message_handler2},
+      Mod,
+      Config
+    ),
 
-  {ok, _} = ?helpers:create_channel(test, Opts, Mod, Config).
+  {ok, _} = gen_buffer_ct:create_buffer(test, Opts, Mod, Config).
 
-t_delete_channel(Config) ->
+t_delete_buffer(Config) ->
   Mod = ?config(module, Config),
-  _ = ?helpers:create_channel(?CHANNEL, ?config(opts, Config), Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, ?config(opts, Config), Mod, Config),
 
-  true = is_pid(whereis(?CHANNEL)),
-  ok = Mod:stop(?CHANNEL),
-  ok = Mod:stop(wrong_channel),
-  undefined = whereis(?CHANNEL).
+  true = is_pid(whereis(?BUFFER)),
+  ok = Mod:stop(?BUFFER),
+  ok = Mod:stop(wrong_buffer),
+  undefined = whereis(?BUFFER).
 
 t_buffer_types(Config) ->
   Mod = ?config(module, Config),
@@ -176,13 +185,13 @@ t_buffer_types(Config) ->
     workers      => 0
   },
 
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
-  _ = ?helpers:create_channel(ring, Opts#{buffer_type => ring, buffer_size => 5}, Mod, Config),
-  _ = ?helpers:create_channel(lifo, Opts#{buffer_type => lifo}, Mod, Config),
-  ChannName = gen_buffer_lib:partition_name(?CHANNEL, 0),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(ring, Opts#{buffer_type => ring, buffer_size => 5}, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(lifo, Opts#{buffer_type => lifo}, Mod, Config),
+  ChannName = gen_buffer_lib:partition_name(?BUFFER, 0),
 
   lists:foreach(fun(M) ->
-    Mod:send(?CHANNEL, M)
+    Mod:send(?BUFFER, M)
   end, lists:seq(1, 10)),
 
   [{_, _, 1}] = ets_buffer:read_dedicated(ChannName),
@@ -203,25 +212,25 @@ t_missing_buffer_worker_funs(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
 
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
-  _ = gen_buffer_worker:start_link(Opts#{channel => ?CHANNEL}),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
+  _ = gen_buffer_worker:start_link(Opts#{buffer => ?BUFFER}),
 
-  {ok, Worker} = Mod:get_worker(?CHANNEL),
+  {ok, Worker} = Mod:get_worker(?BUFFER),
   ok = gen_server:call(Worker, ping).
 
 t_handle_message_state(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts#{workers => 1}, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts#{workers => 1}, Mod, Config),
 
   ok = lists:foreach(fun(M) ->
-    {ok, M} = Mod:sync_send_recv(?CHANNEL, M)
+    {ok, M} = Mod:sync_send_recv(?BUFFER, M)
   end, lists:seq(1, 10)),
 
-  11 = Mod:eval(?CHANNEL, 11),
+  11 = Mod:eval(?BUFFER, 11),
 
   _ = timer:sleep(1000),
-  {ok, MsgL} = Mod:sync_send_recv(?CHANNEL, messages),
+  {ok, MsgL} = Mod:sync_send_recv(?BUFFER, messages),
   11 = length(MsgL).
 
 t_callback_init(Config) ->
@@ -231,7 +240,7 @@ t_callback_init(Config) ->
   _ = process_flag(trap_exit, true),
   Opts2 = Opts#{init_args => {test, {stop, kill}}},
 
-  try ?helpers:create_channel(?CHANNEL, Opts2, Mod, Config)
+  try gen_buffer_ct:create_buffer(?BUFFER, Opts2, Mod, Config)
   catch
     exit:kill -> ok
   end,
@@ -244,15 +253,15 @@ t_callback_init(Config) ->
   ],
 
   lists:foreach(fun(Args) ->
-    _ = ?helpers:create_channel(?CHANNEL, Args, Mod, Config),
+    _ = gen_buffer_ct:create_buffer(?BUFFER, Args, Mod, Config),
     _ = timer:sleep(1000),
-    Mod:stop(?CHANNEL)
+    Mod:stop(?BUFFER)
   end, OptsL).
 
 t_callback_handle_info(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
   Messages = [
     {noreply, #{}},
@@ -264,24 +273,24 @@ t_callback_handle_info(Config) ->
   ],
 
   ok = lists:foreach(fun(Info) ->
-    {ok, Worker} = gen_buffer:get_worker(?CHANNEL),
+    {ok, Worker} = gen_buffer:get_worker(?BUFFER),
     Worker ! Info
   end, Messages),
 
   Opts1 = Opts#{message_handler => test_message_handler2},
-  _ = ?helpers:create_channel(test, Opts1, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(test, Opts1, Mod, Config),
 
   {ok, Worker} = gen_buffer:get_worker(test),
   Worker ! {stop, kill, #{}},
 
   Opts2 = Opts#{message_handler => test_message_handler5},
-  _ = ?helpers:create_channel(test2, Opts2, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(test2, Opts2, Mod, Config),
 
   {ok, Worker2} = gen_buffer:get_worker(test2),
   Worker2 ! {stop, kill, #{}},
 
   Opts3 = Opts#{message_handler => test_message_handler4},
-  _ = ?helpers:create_channel(test3, Opts3, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(test3, Opts3, Mod, Config),
 
   {ok, Worker3} = gen_buffer:get_worker(test3),
   Worker3 ! "hello",
@@ -292,16 +301,16 @@ t_callback_handle_info(Config) ->
 t_callback_terminate(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
-  {ok, Worker1} = gen_buffer:get_worker(?CHANNEL),
+  {ok, Worker1} = gen_buffer:get_worker(?BUFFER),
   _ = exit(Worker1, shutdown),
 
-  {ok, Worker2} = gen_buffer:get_worker(?CHANNEL),
+  {ok, Worker2} = gen_buffer:get_worker(?BUFFER),
   _ = exit(Worker2, throw),
 
   Opts1 = Opts#{message_handler => test_message_handler2},
-  _ = ?helpers:create_channel(test, Opts1, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(test, Opts1, Mod, Config),
 
   {ok, Worker3} = gen_buffer:get_worker(test),
   _ = exit(Worker3, shutdown).
@@ -309,60 +318,60 @@ t_callback_terminate(Config) ->
 t_restart_workers(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
-  {ok, WorkerL1} = gen_buffer:get_workers(?CHANNEL),
+  {ok, WorkerL1} = gen_buffer:get_workers(?BUFFER),
   Len1 = length(WorkerL1),
 
-  {ok, Worker1} = gen_buffer:get_worker(?CHANNEL),
+  {ok, Worker1} = gen_buffer:get_worker(?BUFFER),
   _ = exit(Worker1, shutdown),
 
-  {ok, Worker2} = gen_buffer:get_worker(?CHANNEL),
+  {ok, Worker2} = gen_buffer:get_worker(?BUFFER),
   _ = exit(Worker2, shutdown),
 
-  {ok, WorkerL2} = gen_buffer:get_workers(?CHANNEL),
+  {ok, WorkerL2} = gen_buffer:get_workers(?BUFFER),
   Len1 = length(WorkerL2).
 
 t_gen_buffer_dist_locally(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
-  {ok, "hello"} = gen_buffer_dist:sync_send_recv(?CHANNEL, "hello").
+  {ok, "hello"} = gen_buffer_dist:sync_send_recv(?BUFFER, "hello").
 
 t_gen_buffer_worker_missing_ets_data(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
   _ = process_flag(trap_exit, true),
-  Pids = [spawn_link(?MODULE, producer, [Mod, ?CHANNEL]) || _ <- lists:seq(1, 20)],
+  Pids = [spawn_link(?MODULE, producer, [Mod, ?BUFFER]) || _ <- lists:seq(1, 20)],
   _ = timer:sleep(10000),
   ok = lists:foreach(fun(Pid) -> exit(Pid, normal) end, Pids),
-  Mod:stop(?CHANNEL).
+  Mod:stop(?BUFFER).
 
 t_gen_buffer_lib_missing_funs(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
-  undefined = gen_buffer_lib:get_metadata_value(?CHANNEL, hello),
-  hello = gen_buffer_lib:get_one_metadata_value(?CHANNEL, hello, hello).
+  undefined = gen_buffer_lib:get_metadata_value(?BUFFER, hello),
+  hello = gen_buffer_lib:get_one_metadata_value(?BUFFER, hello, hello).
 
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
 
-producer(Mod, Channel) ->
-  _ = Mod:send(Channel, "hello"),
-  ok = Mod:poll(Channel),
-  producer(Mod, Channel).
+producer(Mod, Buffer) ->
+  _ = Mod:send(Buffer, "hello"),
+  ok = Mod:poll(Buffer),
+  producer(Mod, Buffer).
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-cleanup_channels(Mod) ->
+cleanup_buffers(Mod) ->
   lists:foreach(fun(Ch) ->
     Mod:stop(Ch)
-  end, [?CHANNEL, test, test2, test3]).
+  end, [?BUFFER, test, test2, test3]).

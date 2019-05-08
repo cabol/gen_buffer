@@ -14,7 +14,7 @@
 %% Common Test Cases
 -include_lib("mixer/include/mixer.hrl").
 -mixin([
-  {gen_buffer_common_test_cases, [
+  {gen_buffer_test_cases, [
     t_eval/1,
     t_eval_error/1,
     t_send_recv/1,
@@ -23,8 +23,8 @@
     t_fire_and_forget/1,
     t_add_del_workers/1,
     t_set_workers/1,
-    t_queue_size/1,
-    t_info_channel/1,
+    t_size/1,
+    t_info_buffer/1,
     t_info/1,
     t_worker_polling/1,
     t_worker_distribution/1
@@ -50,8 +50,7 @@
   producer
 ]).
 
--define(helpers, gen_buffer_common_test_cases).
--define(CHANNEL, gen_buffer_test).
+-define(BUFFER, gen_buffer_test).
 
 %%%===================================================================
 %%% Common Test
@@ -89,22 +88,22 @@ end_per_testcase(_, Config) ->
 t_load_balancing(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
-  _ = ?helpers:create_channel(?CHANNEL, Opts#{workers => 0}, Mod, Config),
+  _ = gen_buffer_ct:create_buffer(?BUFFER, Opts#{workers => 0}, Mod, Config),
 
   ok = lists:foreach(fun(M) ->
-    Mod:send(?CHANNEL, {self(), M})
+    Mod:send(?BUFFER, {self(), M})
   end, lists:seq(1, 100)),
 
   ok = lists:foreach(fun(P) ->
-    true = ets:info(gen_buffer_lib:partition_name(?CHANNEL, P), size) > 5
+    true = ets:info(gen_buffer_lib:partition_name(?BUFFER, P), size) > 5
   end, lists:seq(0, 3)),
 
-  {ok, [_, _, _, _]} = Mod:set_workers(?CHANNEL, 4),
-  ok = Mod:poll(?CHANNEL),
+  {ok, [_, _, _, _]} = Mod:set_workers(?BUFFER, 4),
+  ok = Mod:poll(?BUFFER),
   _ = timer:sleep(2000),
 
   lists:foreach(fun(P) ->
-    1 = ets:info(gen_buffer_lib:partition_name(?CHANNEL, P), size)
+    1 = ets:info(gen_buffer_lib:partition_name(?BUFFER, P), size)
   end, lists:seq(0, 3)).
 
 -endif.

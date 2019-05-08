@@ -6,6 +6,6 @@
   handle_message/3
 ]).
 
-handle_message(_Channel, Msg, State) ->
+handle_message(_Buffer, Msg, State) ->
   ct ! Msg,
   {ok, Msg, State}.

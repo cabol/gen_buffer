@@ -1,5 +1,5 @@
 {application, gen_buffer, [
-  {description, "Point-to-Point messaging pattern written in Erlang – based on EIP book"},
+  {description, "Generic message buffer behaviour with back-pressure and pooling for Erlang/Elixir."},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, {gen_buffer_app, []}},

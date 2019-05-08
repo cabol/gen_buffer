@@ -4,5 +4,5 @@
   handle_message/2
 ]).
 
-handle_message(_ChannelName, _Msg) ->
+handle_message(_BufferName, _Msg) ->
   error(handler_exception).

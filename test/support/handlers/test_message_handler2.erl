@@ -12,8 +12,8 @@ init(_Args) ->
   _ = process_flag(trap_exit, true),
   {ok, #{}}.
 
-handle_message(_ChannelName, _Msg, _State) ->
+handle_message(_BufferName, _Msg, _State) ->
   error(handler_exception).
 
-handle_info(_Channel, _Info, _State) ->
+handle_info(_Buffer, _Info, _State) ->
   throw(handler_exception).

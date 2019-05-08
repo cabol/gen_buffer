@@ -57,9 +57,9 @@ poll(Worker) ->
 %%%===================================================================
 
 %% @hidden
-init(#{channel := Channel} = Opts) ->
+init(#{buffer := Buffer} = Opts) ->
   _ = process_flag(trap_exit, true),
-  ok = worker_available(Channel, true),
+  ok = worker_available(Buffer, true),
 
   State = validate_opts(Opts),
   Handler = maps:get(message_handler, State),
@@ -91,7 +91,7 @@ handle_cast(poll, State) ->
 handle_info(
       Info,
       #{
-        channel         := Channel,
+        buffer          := Buffer,
         message_handler := Handler,
         handler_state   := HState
       } = State
@@ -99,13 +99,13 @@ handle_info(
   case erlang:function_exported(Handler, handle_info, 3) of
     true ->
       try
-        ok = worker_available(Channel, false),
-        Result = Handler:handle_info(Channel, Info, HState),
+        ok = worker_available(Buffer, false),
+        Result = Handler:handle_info(Buffer, Info, HState),
         handle_info_result(Result, State)
       catch
         throw:Error -> handle_info_result(Error, State)
       after
-        ok = worker_available(Channel, true)
+        ok = worker_available(Buffer, true)
       end;
 
     false ->
@@ -113,12 +113,12 @@ handle_info(
   end.
 
 %% @hidden
-terminate(Reason, #{channel := Channel, message_handler := Handler, handler_state := HState}) ->
-  ok = worker_available(Channel, false),
+terminate(Reason, #{buffer := Buffer, message_handler := Handler, handler_state := HState}) ->
+  ok = worker_available(Buffer, false),
   case erlang:function_exported(Handler, terminate, 3) of
     true ->
       try
-        Handler:terminate(Channel, Reason, HState)
+        Handler:terminate(Buffer, Reason, HState)
       catch
         throw:Response -> Response
       end;
@@ -169,7 +169,7 @@ validate_message_handler_funs(Handler, Opts) ->
   end.
 
 %% @priate
-do_poll(Message, #{channel := Channel} = State) ->
+do_poll(Message, #{buffer := Buffer} = State) ->
   State1 =
     case Message of
       undefined ->
@@ -181,33 +181,33 @@ do_poll(Message, #{channel := Channel} = State) ->
     end,
 
   lists:foldl(fun(Partition, Acc) ->
-    PartitionName = gen_buffer_lib:partition_name(Channel, Partition),
+    PartitionName = gen_buffer_lib:partition_name(Buffer, Partition),
     do_partition_poll(PartitionName, Acc)
   end, State1, lists:seq(0, maps:get(n_partitions, State, 1) - 1)).
 
 %% @priate
-do_partition_poll(ChannelPartition, State) ->
-  case ets_buffer:read_dedicated(ChannelPartition) of
+do_partition_poll(BufferPartition, State) ->
+  case ets_buffer:read_dedicated(BufferPartition) of
     [] ->
       State;
 
     [Message] ->
       {ok, _Res, NewHState} = eval_callback(Message, State),
-      do_partition_poll(ChannelPartition, State#{handler_state := NewHState});
+      do_partition_poll(BufferPartition, State#{handler_state := NewHState});
 
-    {missing_ets_data, ChannelPartition, _ReadLoc} ->
+    {missing_ets_data, BufferPartition, _ReadLoc} ->
       % this case is expected under heavy concurrency scenario;
       % see ets_buffer for more details
-      do_partition_poll(ChannelPartition, State)
+      do_partition_poll(BufferPartition, State)
   end.
 
 %% @priate
-do_tx(Fun, Args, #{channel := Channel}) ->
+do_tx(Fun, Args, #{buffer := Buffer}) ->
   try
-    ok = worker_available(Channel, false),
+    ok = worker_available(Buffer, false),
     apply(Fun, Args)
   after
-    ok = worker_available(Channel, true)
+    ok = worker_available(Buffer, true)
   end.
 
 -ifdef(OTP_RELEASE).
@@ -217,23 +217,23 @@ do_tx(Fun, Args, #{channel := Channel}) ->
 eval_callback(
       {From, Ref, Msg},
       #{
-        channel         := Channel,
+        buffer          := Buffer,
         message_handler := Handler,
         handler_state   := HState
       } = State
     ) ->
-  try Handler:handle_message(Channel, Msg, HState) of
+  try Handler:handle_message(Buffer, Msg, HState) of
     {ok, Reply, _} = Res ->
-      _ = maybe_reply({reply, Ref, Channel, Reply}, From, State),
+      _ = maybe_reply({reply, Ref, Buffer, Reply}, From, State),
       Res
   catch
     Class:Exception:Stacktrace ->
-      _ = maybe_reply({error, Ref, Channel, Exception}, From, State),
+      _ = maybe_reply({error, Ref, Buffer, Exception}, From, State),
       erlang:raise(Class, Exception, Stacktrace)
   end;
 
-eval_callback(Msg, #{channel := Channel, message_handler := Handler, handler_state := HState}) ->
-  Handler:handle_message(Channel, Msg, HState).
+eval_callback(Msg, #{buffer := Buffer, message_handler := Handler, handler_state := HState}) ->
+  Handler:handle_message(Buffer, Msg, HState).
 
 -else.
 %% OTP 20 or lower
@@ -242,23 +242,23 @@ eval_callback(Msg, #{channel := Channel, message_handler := Handler, handler_sta
 eval_callback(
       {From, Ref, Msg},
       #{
-        channel         := Channel,
+        buffer          := Buffer,
         message_handler := Handler,
         handler_state   := HState
       } = State
     ) ->
-  try Handler:handle_message(Channel, Msg, HState) of
+  try Handler:handle_message(Buffer, Msg, HState) of
     {ok, Reply, _} = Res ->
-      _ = maybe_reply({reply, Ref, Channel, Reply}, From, State),
+      _ = maybe_reply({reply, Ref, Buffer, Reply}, From, State),
       Res
   catch
     Class:Exception ->
-      _ = maybe_reply({error, Ref, Channel, Exception}, From, State),
+      _ = maybe_reply({error, Ref, Buffer, Exception}, From, State),
       erlang:raise(Class, Exception, erlang:get_stacktrace())
   end;
 
-eval_callback(Msg, #{channel := Channel, message_handler := Handler, handler_state := HState}) ->
-  Handler:handle_message(Channel, Msg, HState).
+eval_callback(Msg, #{buffer := Buffer, message_handler := Handler, handler_state := HState}) ->
+  Handler:handle_message(Buffer, Msg, HState).
 
 -endif.
 
@@ -279,8 +279,8 @@ handle_init_result({ok, HState, Timeout}, State) ->
 handle_init_result(ignore, _State) ->
   ignore;
 
-handle_init_result({stop, Reason}, #{channel := Channel} = State) ->
-  ok = worker_available(Channel, false),
+handle_init_result({stop, Reason}, #{buffer := Buffer} = State) ->
+  ok = worker_available(Buffer, false),
   {stop, Reason, State}.
 
 %% @private
@@ -297,8 +297,8 @@ handle_info_result({stop, Reason, NewHState}, State) ->
   {stop, Reason, State#{handler_state => NewHState}}.
 
 %% @private
-worker_available(Channel, true) ->
-  gen_buffer_lib:set_metadata_value(Channel, Channel, self());
+worker_available(Buffer, true) ->
+  gen_buffer_lib:set_metadata_value(Buffer, Buffer, self());
 
-worker_available(Channel, false) ->
-  gen_buffer_lib:del_metadata_value(Channel, Channel, self()).
+worker_available(Buffer, false) ->
+  gen_buffer_lib:del_metadata_value(Buffer, Buffer, self()).

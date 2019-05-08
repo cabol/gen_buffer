@@ -7,9 +7,9 @@
   handle_info/3
 ]).
 
-handle_message(_ChannelName, _Msg, _State) ->
+handle_message(_BufferName, _Msg, _State) ->
   error(handler_exception).
 
-handle_info(_Channel, Info, _State) ->
+handle_info(_Buffer, Info, _State) ->
   _ = timer:sleep(5000),
   {noreply, Info}.

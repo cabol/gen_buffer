@@ -11,37 +11,28 @@
   get_available_worker/1,
   get_partition/1,
   get_partition/2,
-  partition_name/2,
-  concat/2
+  partition_name/2
 ]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-%% @equiv get_metadata_value(Channel, Key, undefined)
-get_metadata_value(Channel, Key) ->
-  get_metadata_value(Channel, Key, undefined).
+%% @equiv get_metadata_value(Buffer, Key, undefined)
+get_metadata_value(Buffer, Key) ->
+  get_metadata_value(Buffer, Key, undefined).
 
--spec get_metadata_value(
-        Channel :: gen_buffer:channel(),
-        Key     :: any(),
-        Default :: any()
-      ) -> any().
-get_metadata_value(Channel, Key, Default) ->
+-spec get_metadata_value(Buffer :: gen_buffer:t(), Key :: any(), Default :: any()) -> any().
+get_metadata_value(Buffer, Key, Default) ->
   try
-    ets:lookup_element(Channel, Key, 2)
+    ets:lookup_element(Buffer, Key, 2)
   catch
     _:_ -> Default
   end.
 
--spec get_one_metadata_value(
-        Channel :: gen_buffer:channel(),
-        Key     :: any(),
-        Default :: any()
-      ) -> any().
-get_one_metadata_value(Channel, Key, Default) ->
-  case get_metadata_value(Channel, Key, Default) of
+-spec get_one_metadata_value(Buffer :: gen_buffer:t(), Key :: any(), Default :: any()) -> any().
+get_one_metadata_value(Buffer, Key, Default) ->
+  case get_metadata_value(Buffer, Key, Default) of
     Value when is_list(Value) ->
       hd(Value);
 
@@ -49,33 +40,23 @@ get_one_metadata_value(Channel, Key, Default) ->
       Value
   end.
 
--spec set_metadata_value(
-        Channel :: gen_buffer:channel(),
-        Key     :: any(),
-        Value   :: any()
-      ) -> ok.
-set_metadata_value(Channel, Key, Value) ->
-  _ = ets:insert(Channel, {Key, Value}),
+-spec set_metadata_value(Buffer :: gen_buffer:t(), Key :: any(), Value :: any()) -> ok.
+set_metadata_value(Buffer, Key, Value) ->
+  _ = ets:insert(Buffer, {Key, Value}),
   ok.
 
--spec del_metadata_value(
-        Channel :: gen_buffer:channel(),
-        Key     :: any(),
-        Value   :: any()
-      ) -> ok.
-del_metadata_value(Channel, Key, Value) ->
-  _ = ets:delete_object(Channel, {Key, Value}),
+-spec del_metadata_value(Buffer :: gen_buffer:t(), Key :: any(), Value :: any()) -> ok.
+del_metadata_value(Buffer, Key, Value) ->
+  _ = ets:delete_object(Buffer, {Key, Value}),
   ok.
 
--spec get_available_workers(Channel :: gen_buffer:channel()) -> [pid()].
-get_available_workers(Channel) ->
-  get_metadata_value(Channel, Channel, []).
+-spec get_available_workers(Buffer :: gen_buffer:t()) -> [pid()].
+get_available_workers(Buffer) ->
+  get_metadata_value(Buffer, Buffer, []).
 
--spec get_available_worker(
-        Channel :: gen_buffer:channel()
-      ) -> pid() | no_available_workers.
-get_available_worker(Channel) ->
-  case get_available_workers(Channel) of
+-spec get_available_worker(Buffer :: gen_buffer:t()) -> pid() | no_available_workers.
+get_available_worker(Buffer) ->
+  case get_available_workers(Buffer) of
     [] ->
       no_available_workers;
 
@@ -83,30 +64,20 @@ get_available_worker(Channel) ->
       pick_worker(Workers)
   end.
 
--spec get_partition(Channel :: gen_buffer:channel()) -> gen_buffer:channel().
-get_partition(Channel) ->
-  NumPartitions = get_one_metadata_value(Channel, n_partitions, 1),
-  get_partition(Channel, NumPartitions).
+-spec get_partition(Buffer :: gen_buffer:t()) -> gen_buffer:t().
+get_partition(Buffer) ->
+  NumPartitions = get_one_metadata_value(Buffer, n_partitions, 1),
+  get_partition(Buffer, NumPartitions).
 
--spec get_partition(
-        Channel       :: gen_buffer:channel(),
-        NumPartitions :: pos_integer()
-      ) -> atom().
-get_partition(Channel, NumPartitions) ->
+-spec get_partition(Buffer :: gen_buffer:t(), NumPartitions :: pos_integer()) -> atom().
+get_partition(Buffer, NumPartitions) ->
   Partition = erlang:phash2(os:timestamp(), NumPartitions),
-  partition_name(Channel, Partition).
+  partition_name(Buffer, Partition).
 
--spec partition_name(
-        Channel   :: gen_buffer:channel(),
-        Partition :: non_neg_integer()
-      ) -> atom().
-partition_name(Channel, Partition) ->
-  Bin = <<(atom_to_binary(Channel, utf8))/binary, ".", (integer_to_binary(Partition))/binary>>,
+-spec partition_name(Buffer :: gen_buffer:t(), Partition :: non_neg_integer()) -> atom().
+partition_name(Buffer, Partition) ->
+  Bin = <<(atom_to_binary(Buffer, utf8))/binary, ".", (integer_to_binary(Partition))/binary>>,
   binary_to_atom(Bin, utf8).
-
--spec concat(term(), term()) -> atom().
-concat(Term1, Term2) ->
-  list_to_atom(lists:flatten(io_lib:format("~p.~p", [Term1, Term2]))).
 
 %%%===================================================================
 %%% Internal functions
