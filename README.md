@@ -179,16 +179,16 @@ gen_buffer:recv(my_buffer, Ref, 1000).
 
 ### Sending messages and receiving replies in the same call
 
-There is a function `gen_buffer:sync_send_recv/2,3` which combines the previous
+There is a function `gen_buffer:send_recv/2,3` which combines the previous
 two functions in one, meaning that, when you send a message using this function,
 it gets blocked until the reply arrives or until the timeout expires.
 
 ```erlang
 % by default, the timeout is 5000 milliseconds
-gen_buffer:sync_send_recv(my_buffer, "hello").
+gen_buffer:send_recv(my_buffer, "hello").
 
 % or you can pass it explicitly
-gen_buffer:sync_send_recv(my_buffer, "hello", 1000).
+gen_buffer:send_recv(my_buffer, "hello", 1000).
 ```
 
 ### Increase/decrease number of workers dynamically (for throttling purposes)

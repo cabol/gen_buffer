@@ -15,8 +15,8 @@
   poll/1,
   recv/2,
   recv/3,
-  sync_send_recv/2,
-  sync_send_recv/3,
+  send_recv/2,
+  send_recv/3,
   get_worker/1,
   get_workers/1,
   set_workers/2,
@@ -94,17 +94,17 @@ recv(Buffer, Ref) ->
 recv(Buffer, Ref, Timeout) ->
   gen_buffer:recv(Buffer, Ref, Timeout).
 
-%% @equiv sync_send_recv(Buffer, Message, infinity)
-sync_send_recv(Buffer, Message) ->
-  sync_send_recv(Buffer, Message, infinity).
+%% @equiv send_recv(Buffer, Message, infinity)
+send_recv(Buffer, Message) ->
+  send_recv(Buffer, Message, infinity).
 
--spec sync_send_recv(
+-spec send_recv(
         Buffer :: gen_buffer:t(),
         Message :: any(),
         Timeout :: timeout()
       ) -> {ok, any()} | {error, any()} | rpc_error().
-sync_send_recv(Buffer, Message, Timeout) ->
-  rpc_call(Buffer, sync_send_recv, [Buffer, Message, Timeout]).
+send_recv(Buffer, Message, Timeout) ->
+  rpc_call(Buffer, send_recv, [Buffer, Message, Timeout]).
 
 -spec get_worker(Buffer :: gen_buffer:t()) -> {ok, pid()} | {error, any()}.
 get_worker(Buffer) ->

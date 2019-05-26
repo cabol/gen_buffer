@@ -17,8 +17,8 @@
   poll/1,
   recv/2,
   recv/3,
-  sync_send_recv/2,
-  sync_send_recv/3,
+  send_recv/2,
+  send_recv/3,
   get_worker/1,
   get_workers/1,
   incr_worker/1,
@@ -228,16 +228,16 @@ recv(Buffer, Ref, Timeout) ->
     Timeout -> {error, timeout}
   end.
 
-%% @equiv sync_send_recv(Buffer, Message, infinity)
-sync_send_recv(Buffer, Message) ->
-  sync_send_recv(Buffer, Message, infinity).
+%% @equiv send_recv(Buffer, Message, infinity)
+send_recv(Buffer, Message) ->
+  send_recv(Buffer, Message, infinity).
 
--spec sync_send_recv(
+-spec send_recv(
         Buffer  :: t(),
         Message :: any(),
         Timeout :: timeout()
       ) -> {ok, HandlerResponse :: any()} | {error, Reason :: any()}.
-sync_send_recv(Buffer, Message, Timeout) ->
+send_recv(Buffer, Message, Timeout) ->
   Ref = send(Buffer, Message),
   recv(Buffer, Ref, Timeout).
 

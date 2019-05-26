@@ -6,9 +6,9 @@
 -export([
   t_eval/1,
   t_eval_error/1,
+  t_send_and_recv/1,
+  t_send_and_recv_errors/1,
   t_send_recv/1,
-  t_send_recv_error/1,
-  t_sync_send_recv/1,
   t_fire_and_forget/1,
   t_add_del_workers/1,
   t_set_workers/1,
@@ -59,7 +59,7 @@ t_eval_error(Config) ->
   true = unregister(ct),
   true = exit(Pid, normal).
 
-t_send_recv(Config) ->
+t_send_and_recv(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
   {ok, _} = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
@@ -70,7 +70,7 @@ t_send_recv(Config) ->
   Ref2 = Mod:send(?BUFFER, "hello"),
   {ok, "hello"} = Mod:recv(?BUFFER, Ref2).
 
-t_send_recv_error(Config) ->
+t_send_and_recv_errors(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
   {ok, _} = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
@@ -83,22 +83,22 @@ t_send_recv_error(Config) ->
   Ref = Mod:send(test, error),
   {error, timeout} = Mod:recv(test, Ref, 1000).
 
-t_sync_send_recv(Config) ->
+t_send_recv(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
   {ok, _} = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
-  {ok, "hello"} = Mod:sync_send_recv(?BUFFER, "hello"),
+  {ok, "hello"} = Mod:send_recv(?BUFFER, "hello"),
 
   Opts1 = Opts#{message_handler => test_message_handler4},
   {ok, _} = gen_buffer_ct:create_buffer(test, Opts1, Mod, Config),
 
-  {error, handler_exception} = Mod:sync_send_recv(test, "hello"),
+  {error, handler_exception} = Mod:send_recv(test, "hello"),
 
   Opts2 = Opts#{message_handler => test_message_handler4, send_replies => false},
   {ok, _} = gen_buffer_ct:create_buffer(test2, Opts2, Mod, Config),
 
-  {error, timeout} = Mod:sync_send_recv(test2, "hello", 1000).
+  {error, timeout} = Mod:send_recv(test2, "hello", 1000).
 
 t_fire_and_forget(Config) ->
   Mod = ?config(module, Config),

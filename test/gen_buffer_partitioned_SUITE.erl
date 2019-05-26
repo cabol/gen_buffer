@@ -17,9 +17,9 @@
   {gen_buffer_test_cases, [
     t_eval/1,
     t_eval_error/1,
+    t_send_and_recv/1,
+    t_send_and_recv_errors/1,
     t_send_recv/1,
-    t_send_recv_error/1,
-    t_sync_send_recv/1,
     t_fire_and_forget/1,
     t_add_del_workers/1,
     t_set_workers/1,

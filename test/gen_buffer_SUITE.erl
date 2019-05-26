@@ -17,9 +17,9 @@
   {gen_buffer_test_cases, [
     t_eval/1,
     t_eval_error/1,
+    t_send_and_recv/1,
+    t_send_and_recv_errors/1,
     t_send_recv/1,
-    t_send_recv_error/1,
-    t_sync_send_recv/1,
     t_fire_and_forget/1,
     t_add_del_workers/1,
     t_set_workers/1,
@@ -224,13 +224,13 @@ t_handle_message_state(Config) ->
   _ = gen_buffer_ct:create_buffer(?BUFFER, Opts#{workers => 1}, Mod, Config),
 
   ok = lists:foreach(fun(M) ->
-    {ok, M} = Mod:sync_send_recv(?BUFFER, M)
+    {ok, M} = Mod:send_recv(?BUFFER, M)
   end, lists:seq(1, 10)),
 
   11 = Mod:eval(?BUFFER, 11),
 
   _ = timer:sleep(1000),
-  {ok, MsgL} = Mod:sync_send_recv(?BUFFER, messages),
+  {ok, MsgL} = Mod:send_recv(?BUFFER, messages),
   11 = length(MsgL).
 
 t_callback_init(Config) ->
@@ -337,7 +337,7 @@ t_gen_buffer_dist_locally(Config) ->
   Opts = ?config(opts, Config),
   _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
 
-  {ok, "hello"} = gen_buffer_dist:sync_send_recv(?BUFFER, "hello").
+  {ok, "hello"} = gen_buffer_dist:send_recv(?BUFFER, "hello").
 
 t_gen_buffer_worker_missing_ets_data(Config) ->
   Mod = ?config(module, Config),

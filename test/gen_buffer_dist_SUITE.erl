@@ -17,15 +17,15 @@
   {gen_buffer_test_cases, [
     t_eval/1,
     t_eval_error/1,
-    t_send_recv_error/1,
-    t_sync_send_recv/1,
+    t_send_and_recv_errors/1,
+    t_send_recv/1,
     t_fire_and_forget/1
   ]}
 ]).
 
 %% Test Cases
 -export([
-  t_send_recv/1,
+  t_send_and_recv/1,
   t_get_set_workers/1,
   t_size/1,
   t_info_buffer/1,
@@ -82,7 +82,7 @@ end_per_testcase(_, Config) ->
 %%% Tests Cases
 %%%===================================================================
 
-t_send_recv(Config) ->
+t_send_and_recv(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
   _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
