@@ -33,7 +33,7 @@
 
 %% Global Utilities
 -export([
-  pg2_namespace/1
+  pg_namespace/1
 ]).
 
 %%%===================================================================
@@ -348,14 +348,14 @@ info() ->
 
     (_, Acc) ->
       Acc
-  end, #{}, pg2:which_groups()).
+  end, #{}, pg:which_groups()).
 
 %%%===================================================================
 %%% Global Utilities
 %%%===================================================================
 
--spec pg2_namespace(gen_buffer:t()) -> any().
-pg2_namespace(Buffer) ->
+-spec pg_namespace(gen_buffer:t()) -> any().
+pg_namespace(Buffer) ->
   {gen_buffer, Buffer}.
 
 %%%===================================================================
