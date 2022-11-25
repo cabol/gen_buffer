@@ -38,7 +38,7 @@ start_link(Buffer, Opts) when is_map(Opts) ->
       ok = start_children(Buffer, Opts),
       Ok;
 
-    Error ->
+    Error -
       Error
   end.
 
@@ -151,6 +151,5 @@ start_children(Buffer, Opts) ->
 %% @private
 init_pg(Buffer, SupPid) ->
   Group = gen_buffer:pg_namespace(Buffer),
-  ok = pg:create(Group),
   ok = pg:join(Group, SupPid),
   ok.
