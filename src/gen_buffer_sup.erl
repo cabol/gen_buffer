@@ -38,7 +38,7 @@ start_link(Buffer, Opts) when is_map(Opts) ->
       ok = start_children(Buffer, Opts),
       Ok;
 
-    Error -
+    Error ->
       Error
   end.
 
