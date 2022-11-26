@@ -154,12 +154,12 @@ info() ->
   Nodes =
     lists:foldl(fun
       ({gen_buffer, _} = Group, Acc) ->
-        GroupNodes = [node(Member) || Member <- pg2:get_members(Group)],
+        GroupNodes = [node(Member) || Member <- gen_buffer_pg:get_members(Group)],
         GroupNodes ++ Acc;
 
       (_, Acc) ->
         Acc
-    end, [], pg2:which_groups()),
+    end, [], gen_buffer_pg:which_groups()),
 
   info(Nodes).
 
@@ -199,11 +199,9 @@ pick_node(Buffer, Key) ->
 
 -spec get_nodes(Buffer :: gen_buffer:t()) -> [node()].
 get_nodes(Buffer) ->
-  Group = gen_buffer:pg2_namespace(Buffer),
-
-  case pg2:get_members(Group) of
+  case gen_buffer_pg:get_members(Buffer) of
     {error, {no_such_group, Group}} ->
-      ok = pg2:create(Group),
+      ok = gen_buffer_pg:create(Group),
       get_nodes(Buffer);
 
     [] ->

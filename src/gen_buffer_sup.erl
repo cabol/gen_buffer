@@ -34,7 +34,7 @@ start_link(Buffer, Opts) when is_list(Opts) ->
 start_link(Buffer, Opts) when is_map(Opts) ->
   case supervisor:start_link({local, Buffer}, ?MODULE, {Buffer, Opts}) of
     {ok, Pid} = Ok ->
-      ok = init_pg2(Buffer, Pid),
+      ok = init_pg(Buffer, Pid),
       ok = start_children(Buffer, Opts),
       Ok;
 
@@ -149,8 +149,7 @@ start_children(Buffer, Opts) ->
   end, lists:seq(1, maps:get(workers, Opts, ?DEFAULT_WORKERS))).
 
 %% @private
-init_pg2(Buffer, SupPid) ->
-  Group = gen_buffer:pg2_namespace(Buffer),
-  ok = pg2:create(Group),
-  ok = pg2:join(Group, SupPid),
+init_pg(Buffer, SupPid) ->
+  ok = gen_buffer_pg:create(Buffer),
+  ok = gen_buffer_pg:join(Buffer, SupPid),
   ok.

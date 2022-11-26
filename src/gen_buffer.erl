@@ -31,10 +31,6 @@
   info/0
 ]).
 
-%% Global Utilities
--export([
-  pg2_namespace/1
-]).
 
 %%%===================================================================
 %%% Types
@@ -348,15 +344,7 @@ info() ->
 
     (_, Acc) ->
       Acc
-  end, #{}, pg2:which_groups()).
-
-%%%===================================================================
-%%% Global Utilities
-%%%===================================================================
-
--spec pg2_namespace(gen_buffer:t()) -> any().
-pg2_namespace(Buffer) ->
-  {gen_buffer, Buffer}.
+  end, #{}, gen_buffer_pg:which_groups()).
 
 %%%===================================================================
 %%% Internal functions
