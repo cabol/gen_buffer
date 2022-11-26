@@ -159,7 +159,7 @@ t_info(Config) ->
   _ = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
   _ = gen_buffer_ct:create_buffer(test, Opts, Mod, Config),
 
-  ok = pg2:create(yet_another_group),
+  ok = gen_buffer_pg:create(yet_another_group),
 
   [
     {'ct@127.0.0.1', Data},

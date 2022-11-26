@@ -10,9 +10,7 @@
 -export([
   create/1,
   delete/1,
-  join/1,
   join/2,
-  leave/1,
   leave/2,
   get_members/1,
   which_groups/0
@@ -99,11 +97,4 @@ ensure_namespace(Tab) ->
 
 -endif.
 
-%% @equiv join(Tab, shards_meta:tab_pid(Tab))
-join(Tab) when is_atom(Tab) ->
-  join(Tab, shards_meta:tab_pid(Tab)).
-
-%% @equiv leave(Tab, shards_meta:tab_pid(Tab))
-leave(Tab) when is_atom(Tab) ->
-  leave(Tab, shards_meta:tab_pid(Tab)).
 

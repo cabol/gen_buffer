@@ -198,7 +198,7 @@ t_info(Config) ->
   {ok, _} = gen_buffer_ct:create_buffer(?BUFFER, Opts, Mod, Config),
   {ok, _} = gen_buffer_ct:create_buffer(test, Opts, Mod, Config),
   {ok, _} = gen_buffer_ct:create_buffer(test2, Opts#{workers => 0}, Mod, Config),
-  ok = pg2:create(yet_another_group),
+  ok = gen_buffer_pg:create(yet_another_group),
 
   InfoMap = Mod:info(),
   3 = map_size(InfoMap),
