@@ -176,7 +176,7 @@ t_no_available_nodes(Config) ->
   Mod = ?config(module, Config),
   Opts = ?config(opts, Config),
 
-  ok = pg2:delete(gen_buffer:pg2_namespace(?BUFFER)),
+  ok = gen_buffer_pg:delete(?BUFFER),
   try
     Mod:send(?BUFFER, "hello")
   catch
